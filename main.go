@@ -5,6 +5,7 @@ import (
 	_ "expvar"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -33,6 +34,10 @@ func main() {
 	// Start the HTTP handler.
 	http.HandleFunc("/heavyapi", func(w http.ResponseWriter, r *http.Request) {
 		heavyApiHandlerGET(w, r, jobQueue)
+	})
+
+	http.HandleFunc("/bigapi", func(w http.ResponseWriter, r *http.Request) {
+		bigApiHandlerPOST(w, r, jobQueue)
 	})
 
 	server := &http.Server{
@@ -73,6 +78,46 @@ func heavyApiHandlerGET(w http.ResponseWriter, r *http.Request, jobQueue chan Jo
 		return
 	}
 	sendSuccessResponse(w, resp.Value)
+}
+
+func bigApiHandlerPOST(w http.ResponseWriter, r *http.Request, jobQueue chan Job) {
+	// Make sure we can only be called with an HTTP POST request.
+	if r.Method != "POST" {
+		sendFailResponse(w, http.StatusMethodNotAllowed, "You must use POST method")
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	var reqBody struct {
+		Product string
+	}
+	err = json.Unmarshal(body, &reqBody)
+	if err != nil {
+		panic(err)
+	}
+
+	if reqBody.Product == "" {
+		sendFailResponse(w, http.StatusBadRequest, "Product name is required as POST body, ex: {product:iPhone}")
+		return
+	}
+
+	//create a task, pass it to jobque, wait for result in reuturn channel
+	task := NewBigTask()
+	parameters := map[string]string{"productName": reqBody.Product}
+	job := NewJob(&task, parameters, NewJobResultChannel())
+	jobQueue <- job
+
+	resp := <-job.ReturnChannel
+	if resp.Error != nil {
+		sendFailResponse(w, http.StatusInternalServerError, fmt.Sprintf("Something went wrong. %s", resp.Error))
+		return
+	}
+	sendSuccessResponse(w, resp.Value)
+
 }
 
 type Response struct {
