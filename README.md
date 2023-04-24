@@ -14,13 +14,19 @@ The worker pool implementation in this repository consists of the following file
 
     heavy_task.go: This shows how to implement a generic task which can be passed to worker pool. Currently it simulates a random sleep, but you can add anything here (please check the 'post' branch for an example).
 
-    main.go: This file contains a simple example of how to use the worker pool. It creates a pool with 5 workers and a job queue limit of 100. The params can be tweaked while executing like following:
-
-    go run . -max_workers 20 -max_queue_size 100 -port 8080
+    main.go: This file contains a simple example of how to use the worker pool. It creates a pool with 5 workers and a job queue limit of 100. The params can be tweaked while running.
     
 ## Usage
 
-To use the worker pool in your own code, you can simply copy the worker_pool.go file to your project and import it as a package. Then you can create a new WorkerPool object with the desired number of workers and job queue limit, and start adding jobs to the queue using the AddJob method. 
+Clone this repo, then simply run this project:
+
+    go run .
+
+Or tweak the params while you run:
+
+    go run . -max_workers 20 -max_queue_size 100 -port 8080
+
+To use the worker pool in your own code, you can simply copy the worker_pool.go file to your project. Then you can create a new jobqueue and dispatcher object with the desired number of job queue limit and workers, and run the dispatcher. Adding jobs to the jobqueue will start concurrent processing.
 
 The Job, JobResult and Task are simple struct which can be used generically.
 
@@ -36,6 +42,7 @@ The Job, JobResult and Task are simple struct which can be used generically.
     }
 
 The task must implementt a `Run` method that will be called from inside a worker routine.
+    
     type HeavyTask struct{}
 
     func NewHeavyTask() HeavyTask {
@@ -79,7 +86,7 @@ This example creates a worker pool with 5 workers and a job queue limit of 10, a
         sendSuccessResponse(w, resp.Value)
 
 ## Benchmarking
-I've load tested the code using `Apache bench`. Here are some tests I've done, where -c=concurrenct requests to send, -n= number of total requests to send, -v=verbose level 2, -p=filename for post requeest body.
+Some sample load test was done for this code using [Apache Bench](https://httpd.apache.org/docs/2.4/programs/ab.html). Here are some tests I've done, where -c=concurrenct requests to send, -n= number of total requests to send, -v=verbose level 2, -p=filename for post requeest body.
 
 ### General test 
     ab -c 50 -n 1000 -v 2 "http://localhost:8080/heavyapi?sleep=35" > log.txt
